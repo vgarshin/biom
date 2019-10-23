@@ -6,6 +6,7 @@ Entrance face recognition tools
 python startrec.py ip destination_folder delay total_images
 
 где:
+
 ip - IP адрес и порт камеры
 destination_folder - папка, куда записываются изображения (кадры)
 delay - задержка между кадрами
@@ -18,6 +19,7 @@ python startrec.py rtsp://admin:SWSCFX@192.168.10.159 shots 1 10
 Следующим шагом запускаем процесс разспознавания изображений:
 
 где:
+
 data_base_create - флаг создания базы данных 
 photos_folder - путь, где лежат фото людей, которых мы распознаем
 shots_folder - путь, где лежат кадры с камеры

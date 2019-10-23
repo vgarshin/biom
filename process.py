@@ -3,6 +3,7 @@ import cv2
 import sys
 import dlib
 import pickle
+import shutil
 import json
 import numpy as np
 import pandas as pd
@@ -77,7 +78,7 @@ def find_identity(img, database, model, level=.75):
         return identity, min_dist
     else:
         return None, min_dist
-def process_shots(path_shots, start_time, database, model, logs_path):
+def process_shots(path_shots, start_time, database, model, logs_path, path_shots_prcd):
     img_files = os.listdir(path_shots)
     for img_file in img_files:
         print('image processing: ', img_file)
@@ -88,18 +89,26 @@ def process_shots(path_shots, start_time, database, model, logs_path):
             img_face = align_face(img, face_rect)
             (x, y, w, h) = get_face_xywh(face_rect)
             identity, min_dist = find_identity(img_face, database, model, level=LEVEL)
+            x1 = x
+            y1 = y
+            x2 = x + w
+            y2 = y + h
             if identity:
-                x1 = x
-                y1 = y
-                x2 = x + w
-                y2 = y + h
                 results.append({'identity': str(identity), 
                                 'min dist': str(min_dist), 
                                 'level': str(LEVEL),
                                 'rectangle': ' '.join(str(x) for x in [x1, y1, x2, y2])})
-        log_file_path = '{}{}.txt'.format(logs_path, img_file[:img_file.find('.')])
+                print(str(identity), str(min_dist))
+            else:
+                results.append({'identity': 'Unknown', 
+                                'min dist': 'None', 
+                                'level': str(LEVEL),
+                                'rectangle': ' '.join(str(x) for x in [x1, y1, x2, y2])})
+                print('Unknown')
+            log_file_path = '{}{}.txt'.format(logs_path, img_file[:img_file.find('.')])
         with open(log_file_path, 'w') as file:
             json.dump(results, file)
+        shutil.move('{}{}'.format(path_shots, img_file), '{}{}'.format(path_shots_prcd, img_file))
 def translit(text):
     symbols = ('абвгдеёжзийклмнопрстуфхцчшщъыьэюяАБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ ',
                'abvgdeejzijklmnoprstufhccss_yieuaABVGDEEJZIJKLMNOPRSTUFHCCSS_YIEUA ')
@@ -121,14 +130,17 @@ def get_database(database, model, path):
             database[label] = (name, department, subject, path_file, image_to_embedding(img_face, model))
     return database
 def main():
-    #python process.py dbcreate photos shots logs starttime
+    #python process.py dbcreate photos shots shotsprcd logs starttime
     database_create = True if sys.argv[1] == 'dbcreate' else False #dbcreate
     photos_path = './{}/'.format(sys.argv[2]) #photos
     shots_path = './{}/'.format(sys.argv[3]) #shots
-    logs_path = './{}/'.format(sys.argv[4]) #logs
+    shots_prcd_path = './{}/'.format(sys.argv[4]) #shots
+    logs_path = './{}/'.format(sys.argv[5]) #logs
     start_time = sys.argv[5]
     if not os.path.exists(logs_path):
         os.makedirs(logs_path)
+    if not os.path.exists(shots_prcd_path):
+        os.makedirs(shots_prcd_path)
     if database_create:
         database = {}
         database = get_database(database, model, photos_path)
@@ -138,7 +150,7 @@ def main():
     with open('{}database.pkl'.format(DATA_PATH), 'rb') as file:
         database = pickle.load(file)
     print('database ready...')    
-    process_shots(shots_path, start_time, database, model, logs_path)
+    process_shots(shots_path, start_time, database, model, logs_path, shots_prcd_path)
 
 if __name__ == '__main__':
     main()

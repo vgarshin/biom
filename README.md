@@ -1,5 +1,5 @@
 # biom
-Entrance face recognition tools
+## Entrance face recognition tools
 
 Работает следующим образом. Сначала запускаем процесс записи изображений с камеры с определенным интервалом:
 

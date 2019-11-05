@@ -3,7 +3,7 @@
 
 Работает следующим образом. Сначала запускаем процесс записи изображений с камеры с определенным интервалом:
 ```
-python startrec.py ip destination_folder delay total_images
+python startrec_mt.py destination_folder delay total_images
 ```
 где:
 - ip - IP адрес и порт камеры
@@ -13,9 +13,9 @@ python startrec.py ip destination_folder delay total_images
 
 Пример:
 ```
-python startrec.py rtsp://admin:SWSCFX@192.168.10.159 shots 1 10
+python startrec.py shots .5 1000
 ```
-Следующим шагом запускаем процесс разспознавания изображений:
+Следующим шагом запускаем процесс распознавания изображений:
 
 где:
 - data_base_create - флаг создания базы данных 
@@ -24,8 +24,9 @@ python startrec.py rtsp://admin:SWSCFX@192.168.10.159 shots 1 10
 - shots_processed_folder - путь, куда перемещаются обраотанные кадры
 - logs_folder - путь для сохранения логов
 - starttime - пока не используется
+- level - уровень принятия решений (порог отсечения)
 
 Пример:
 ```
-python startrec.py dbcreate photos shots shotsprcd logs starttime
+python startrec.py nodbcreate photos shots shotsprcd logs starttime .7
 ```

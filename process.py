@@ -23,7 +23,6 @@ FACE_TEMPLATE_PATH = '{}face_template.npy'.format(DATA_PATH)
 DLIB_DETECTOR = dlib.get_frontal_face_detector()
 DLIB_PREDICTOR = dlib.shape_predictor(DLIB_PREDICTOR_PATH)
 FACE_TEMPLATE = np.load(FACE_TEMPLATE_PATH)
-LEVEL = .75
 print('global variables initialized...')
 model = load_model('{}model.h5'.format(DATA_PATH), custom_objects={'tf': tf})
 print('model loaded...')
@@ -65,7 +64,7 @@ def image_to_embedding(image, model):
     x_train = np.array([img])
     embedding = model.predict_on_batch(x_train)
     return embedding
-def find_identity(img, database, model, level=.75):
+def find_identity(img, database, model, level):
     min_dist = 100.
     identity = None
     img_embedding = image_to_embedding(img, model)
@@ -78,34 +77,47 @@ def find_identity(img, database, model, level=.75):
         return identity, min_dist
     else:
         return None, min_dist
-def process_shots(path_shots, start_time, database, model, logs_path, path_shots_prcd):
+def process_shots(path_shots, start_time, database, model, logs_path, path_shots_prcd, level=.7):
     img_files = os.listdir(path_shots)
     for img_file in img_files:
         print('image processing: ', img_file)
         results = []
-        img = cv2.imread('{}{}'.format(path_shots, img_file))
+        file_name = '{}{}'.format(path_shots, img_file)
+        img = cv2.imread(file_name)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        color = (0, 255, 0)
+        font_scale = max(img.shape[0], img.shape[0]) / 1000
+        line_scale = round(3 * font_scale)
+        shift_x = 5
+        shift_y = int(shift_x * font_scale)
         faces = get_faces_rects(img, 1)
         for face_rect in faces:
             img_face = align_face(img, face_rect)
             (x, y, w, h) = get_face_xywh(face_rect)
-            identity, min_dist = find_identity(img_face, database, model, level=LEVEL)
+            identity, min_dist = find_identity(img_face, database, model, level=level)
             x1 = x
             y1 = y
             x2 = x + w
             y2 = y + h
             if identity:
-                results.append({'identity': str(identity), 
-                                'min dist': str(min_dist), 
-                                'level': str(LEVEL),
-                                'rectangle': ' '.join(str(x) for x in [x1, y1, x2, y2])})
+                result = {'identity': str(identity), 
+                          'min dist': str(min_dist), 
+                          'level': str(level),
+                          'rectangle': ' '.join(str(x) for x in [x1, y1, x2, y2])}
                 print(str(identity), str(min_dist))
             else:
-                results.append({'identity': 'Unknown', 
-                                'min dist': 'None', 
-                                'level': str(LEVEL),
-                                'rectangle': ' '.join(str(x) for x in [x1, y1, x2, y2])})
+                result = {'identity': 'Unknown', 
+                          'min dist': 'None', 
+                          'level': str(level),
+                          'rectangle': ' '.join(str(x) for x in [x1, y1, x2, y2])}
                 print('Unknown')
-            log_file_path = '{}{}.txt'.format(logs_path, img_file[:img_file.find('.')])
+            img = cv2.rectangle(img, (x1, y1), (x2, y2), color, line_scale)
+            cv2.putText(img, result['identity'], 
+                        (x1 + shift_x, y1 - shift_y), 
+                        font, font_scale, color, line_scale)
+            results.append(result)
+        cv2.imwrite(file_name, img)
+        log_file_path = '{}{}.txt'.format(logs_path, img_file[:img_file.find('.')])
         with open(log_file_path, 'w') as file:
             json.dump(results, file)
         shutil.move('{}{}'.format(path_shots, img_file), '{}{}'.format(path_shots_prcd, img_file))
@@ -130,13 +142,14 @@ def get_database(database, model, path):
             database[label] = (name, department, subject, path_file, image_to_embedding(img_face, model))
     return database
 def main():
-    #python process.py dbcreate photos shots shotsprcd logs starttime
+    #python process.py nodbcreate photos shots shotsprcd logs starttime .7
     database_create = True if sys.argv[1] == 'dbcreate' else False #dbcreate
     photos_path = './{}/'.format(sys.argv[2]) #photos
     shots_path = './{}/'.format(sys.argv[3]) #shots
     shots_prcd_path = './{}/'.format(sys.argv[4]) #shots
     logs_path = './{}/'.format(sys.argv[5]) #logs
-    start_time = sys.argv[5]
+    start_time = sys.argv[6]
+    level = float(sys.argv[7])
     if not os.path.exists(logs_path):
         os.makedirs(logs_path)
     if not os.path.exists(shots_prcd_path):
@@ -150,7 +163,7 @@ def main():
     with open('{}database.pkl'.format(DATA_PATH), 'rb') as file:
         database = pickle.load(file)
     print('database ready...')    
-    process_shots(shots_path, start_time, database, model, logs_path, shots_prcd_path)
+    process_shots(shots_path, start_time, database, model, logs_path, shots_prcd_path, level)
 
 if __name__ == '__main__':
     main()
